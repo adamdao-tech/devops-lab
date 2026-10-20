@@ -157,3 +157,26 @@ h2{font:600 17px var(--sans);margin:30px 0 12px}
 .ni .link{font-size:12px}
 .notetag{border:0;cursor:pointer;margin-left:6px;background:rgba(255,197,82,.14);color:var(--warn)}
 @media(max-width:800px){.nbtn span{display:none}.nbtn{right:14px;bottom:14px}.npanel{right:12px;bottom:66px;resize:none;width:calc(100vw - 24px)}}
+
+/* ---------- tahák ---------- */
+.wq{width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;color:var(--text);font:15px var(--mono);outline:none;margin-bottom:6px}
+.wq:focus{border-color:var(--acc)}
+kbd.k{font:600 12px var(--mono);border:1px solid var(--line2);border-radius:5px;padding:0 6px;color:var(--acc)}
+.wsec h2{font-size:20px;margin:30px 0 4px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.wg{font:600 12px var(--sans);letter-spacing:1.2px;text-transform:uppercase;color:var(--acc);margin:18px 0 8px}
+.wgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(420px,1fr))}
+.wc{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;min-width:0}
+.wh{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px}
+.wcmd{flex:1;font:600 14px var(--mono);color:var(--acc2);word-break:break-word}
+.wbtns{display:flex;gap:4px;flex:none}
+.wb{background:var(--bg2);border:1px solid var(--line);border-radius:6px;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 7px;line-height:1.4}
+.wb:hover{color:var(--acc2);border-color:var(--acc)}
+.wb.sm{font-size:11px;padding:0 6px;opacity:0;transition:opacity .1s}
+.wl:hover .wb.sm{opacity:1}
+.wd{font-size:14px;color:var(--text)}
+.wd code,.wtip code{font:500 .9em var(--mono);background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--acc2)}
+.wex{margin-top:8px;background:#070a09;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:13px/1.6 var(--mono)}
+.wl{display:flex;align-items:flex-start;gap:8px}
+.wl span{flex:1;white-space:pre-wrap;word-break:break-word;color:#cfe0d6}
+.wtip{margin-top:7px;font-size:13px;color:var(--warn)}
+@media(max-width:800px){.wgrid{grid-template-columns:1fr}.wb.sm{opacity:1}}

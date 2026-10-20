@@ -181,7 +181,7 @@ function cmdB(it){
   const fin = (ok, said) => {
     inp.disabled=true; $('#cact').remove(); done(it, ok, {pick:said});
     if(S.exam){ setTimeout(advance,150); return; }
-    $('#fb').innerHTML = `<div class="x ${ok?'':'bad'}"><b>${ok?'Správně ✓':'Řešení'}</b><div class="fixl">$ ${esc(it.s)}</div><div style="margin-top:6px">${md(it.x)}</div></div>`+nextBtn(); bindNext();
+    $('#fb').innerHTML = `<div class="x ${ok?'':'bad'}"><b>${ok?'Správně ✓':'Řešení'}</b><div class="fixl">$ ${esc(it.s)}</div><div style="margin-top:6px">${md(it.x)}</div><div style="margin-top:8px;font-size:13px"><a href="#/wiki?t=${it.t}&q=${encodeURIComponent(it.s.split(' ')[0])}" target="_blank">📖 Víc v taháku: ${esc(it.s.split(' ')[0])}</a></div></div>`+nextBtn(); bindNext();
   };
   inp.onkeydown = e => {
     if(e.key!=='Enter') return; e.stopPropagation();
@@ -282,17 +282,50 @@ const NB = (() => {
   return {open,close,toggle,isOpen,setItem,append,reload(){ ta.value=D.notes||''; renderList(); }};
 })();
 
+
+// ---------- tahák příkazů ----------
+function wikiView(params){
+  const W = window.WIKI || [];
+  let q = params.get('q')||'', tsel = params.get('t')||'';
+  const r = () => {
+    const ql = q.trim().toLowerCase();
+    const hit = e => (!tsel||e.t===tsel) && (!ql || (e.c+' '+e.d+' '+(e.ex||[]).join(' ')+' '+(e.tip||'')+' '+e.g).toLowerCase().includes(ql));
+    const list = W.filter(hit);
+    const byT = {}; list.forEach(e=>{ ((byT[e.t] ||= {})[e.g] ||= []).push(e); });
+    const card = (e,i) => `<div class="wc">
+        <div class="wh"><code class="wcmd">${esc(e.c)}</code><span class="wbtns"><button class="wb" data-copy="${esc(e.c)}" title="Kopírovat">⧉</button><button class="wb" data-wnote="${W.indexOf(e)}" title="Do bloku">📝</button></span></div>
+        <div class="wd">${md(e.d)}</div>
+        ${e.ex?`<div class="wex">${e.ex.map(x=>`<div class="wl"><span>${esc(x)}</span><button class="wb sm" data-copy="${esc(x.replace(/\s+#.*$/,''))}" title="Kopírovat">⧉</button></div>`).join('')}</div>`:''}
+        ${e.tip?`<div class="wtip">💡 ${md(e.tip)}</div>`:''}</div>`;
+    const body = Object.keys(TOPICS).filter(t=>byT[t]).map(t=>`<section class="wsec"><h2>${TOPICS[t]}</h2>${Object.entries(byT[t]).map(([g,es])=>`<h3 class="wg">${esc(g)}</h3><div class="wgrid">${es.map(card).join('')}</div>`).join('')}</section>`).join('');
+    const cnt = t => W.filter(e=>e.t===t).length;
+    $('#wres').innerHTML = list.length ? body : `<div class="empty">Nic nenalezeno pro „${esc(q)}“.</div>`;
+    $('#wchips').innerHTML = `<button class="chip ${!tsel?'on':''}" data-wt="">Vše<small>${W.length}</small></button>`+Object.entries(TOPICS).filter(([t])=>cnt(t)).map(([t,n])=>`<button class="chip ${tsel===t?'on':''}" data-wt="${t}">${n}<small>${cnt(t)}</small></button>`).join('');
+    $('#wchips').querySelectorAll('[data-wt]').forEach(b=>b.onclick=()=>{ tsel=b.dataset.wt; sync(); r(); });
+    $('#wres').querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{ navigator.clipboard?.writeText(b.dataset.copy); b.textContent='✓'; setTimeout(()=>b.textContent='⧉',900); });
+    $('#wres').querySelectorAll('[data-wnote]').forEach(b=>b.onclick=()=>{ const e=W[+b.dataset.wnote]; NB.append(`## Tahák · ${TOPICS[e.t]}\n${e.c}\n  ${e.d}${e.ex?'\n'+e.ex.map(x=>'  '+x).join('\n'):''}${e.tip?'\n  '+e.tip:''}`); b.textContent='✓'; });
+  };
+  const sync = () => { const u=new URLSearchParams(); if(tsel)u.set('t',tsel); if(q)u.set('q',q); history.replaceState(null,'','#/wiki'+(u.toString()?'?'+u:'')); };
+  app.innerHTML = `<h1>Tahák příkazů</h1><p class="sub">Všechno na jednom místě, s příklady. Klikni na ⧉ a máš to ve schránce, 📝 to pošle do bloku. Hledání otevřeš klávesou <kbd class="k">/</kbd>.</p>
+    <input id="wq" class="wq" type="search" placeholder="Hledej: port, logy, restart, dns, rollback…" value="${esc(q)}" autocomplete="off">
+    <div class="chips" id="wchips"></div><div id="wres"></div>`;
+  const inp=$('#wq'); inp.oninput=()=>{ q=inp.value; sync(); r(); };
+  if(q) inp.focus();
+  r();
+}
+
 // ---------- routes ----------
 let keyH=null;
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape' && NB.isOpen()){ NB.close(); return; }
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='/' && $('#wq')){ e.preventDefault(); $('#wq').focus(); return; }
   if((e.key==='n'||e.key==='N') && !e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); NB.toggle(); return; }
   if(e.key==='Enter' && $('#nx')){ e.preventDefault(); advance(); return; }
   if(keyH) keyH(e);
 });
 function route(){
-  const r=location.hash.replace(/^#\/?/,'');
+  const [r,qs]=location.hash.replace(/^#\/?/,'').split('?');
   document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===r.split('/')[0]));
   if(S && S.tick) clearInterval(S.tick); S=null; keyH=null; NB.setItem(null); window.scrollTo(0,0);
   if(r==='quiz') return setup('quiz','Kvíz','Otázky s okamžitým vysvětlením. Odpovídat můžeš i klávesami 1–4.');
@@ -301,6 +334,7 @@ function route(){
   if(r==='review'){ const l=ITEMS.filter(i=>needsReview(i.id)); return l.length ? run(shuffle(l).slice(0,20),{title:'Opakování'}) : (app.innerHTML=`<div class="empty"><h1>Nic k opakování ✓</h1><p>Co pokazíš, objeví se tady, dokud to 2× za sebou nedáš správně.</p><a class="btn" href="#/quiz">Jít trénovat</a></div>`); }
   if(r==='mix') return run(pick(ITEMS.filter(i=>selTopics().includes(i.t)),10),{title:'Mix'});
   if(r==='exam') return examSetup();
+  if(r==='wiki') return wikiView(new URLSearchParams(qs||''));
   dash();
 }
 function examSetup(){
