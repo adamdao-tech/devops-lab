@@ -24,6 +24,17 @@
   </nav>
 </header>
 <main id="app"></main>
+<button id="nbtn" class="nbtn" title="Poznámkový blok (N)">📝 <span>Blok</span></button>
+<section id="npanel" class="npanel" hidden aria-label="Poznámkový blok">
+  <div class="nhead">
+    <div class="ntabs"><button data-nt="main" class="on">Blok</button><button data-nt="item" disabled>K úloze</button><button data-nt="all">Vše k úlohám</button></div>
+    <button id="nclose" class="nx" title="Zavřít (Esc)">✕</button>
+  </div>
+  <div data-pane="main" class="npane"><textarea id="nta" spellcheck="false" placeholder="Tvoje poznámky… Ukládají se samy. Tlačítkem „📝 Do bloku“ u úlohy sem vložíš zadání i řešení."></textarea>
+    <div class="nfoot"><button class="link" id="ncopy">Kopírovat</button> · <button class="link" id="ndl">Stáhnout .md</button></div></div>
+  <div data-pane="item" class="npane" hidden><div id="ninfo" class="ninfo"></div><textarea id="nita" spellcheck="false" placeholder="Poznámka jen k téhle úloze – ukáže se ti, až na ni zase narazíš."></textarea></div>
+  <div data-pane="all" class="npane" hidden><div id="nlist" class="nlist"></div></div>
+</section>
 <footer class="foot">Postup se ukládá jen v tomhle prohlížeči. <button id="exp" class="link">Export</button> · <label class="link">Import<input type="file" id="imp" accept="application/json" hidden></label> · <button id="reset" class="link">Vymazat postup</button></footer>
 <script src="data/quiz.js"></script>
 <script src="data/cmds.js"></script>

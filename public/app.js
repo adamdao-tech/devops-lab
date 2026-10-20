@@ -22,7 +22,7 @@ const byId = Object.fromEntries(ITEMS.map(i=>[i.id,i]));
 // ---------- storage ----------
 const KEY='devopslab:v1';
 let D = (()=>{ try{ return JSON.parse(localStorage.getItem(KEY)) || null; }catch(e){ return null; } })() || {items:{},days:[],exams:[],topics:[]};
-D.items ||= {}; D.days ||= []; D.exams ||= []; D.topics ||= [];
+D.items ||= {}; D.days ||= []; D.exams ||= []; D.topics ||= []; D.notes ??= ''; D.inotes ||= {};
 const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(D)); }catch(e){} };
 const st = id => D.items[id] || {c:0,w:0,box:0,last:0};
 function record(id, ok){
@@ -134,10 +134,11 @@ function head(){
   return `<div class="sess-top"><button class="btn ghost" id="quit" title="Ukončit">✕</button><div class="prog"><i style="width:${S.i/S.list.length*100}%"></i></div><span class="cnt">${S.i+1} / ${S.list.length}</span>${S.exam?`<span class="timer" id="timer">${fmtT(S.limit)}</span>`:''}</div>`;
 }
 function show(){
-  const it=S.list[S.i];
-  app.innerHTML = head() + `<span class="tag">${TOPICS[it.t]} · ${{quiz:'kvíz',cmd:'příkaz',fix:'najdi chybu'}[it.k]}</span>` + (it.k==='quiz'?quizV(it):it.k==='cmd'?cmdV(it):fixV(it));
+  const it=S.list[S.i]; NB.setItem(it);
+  app.innerHTML = head() + `<span class="tag">${TOPICS[it.t]} · ${{quiz:'kvíz',cmd:'příkaz',fix:'najdi chybu'}[it.k]}</span>${D.inotes[it.id]?`<button class="tag notetag" id="hasnote">📝 máš k tomu poznámku</button>`:''}` + (it.k==='quiz'?quizV(it):it.k==='cmd'?cmdV(it):fixV(it));
   $('#quit').onclick=()=>{ if(S.exam && !confirmQuit()) return; clearInterval(S.tick); S.res.length?finish():(location.hash='#/'); };
   if(S.exam) tick();
+  const hn=$('#hasnote'); if(hn) hn.onclick=()=>NB.open('item');
   (it.k==='quiz'?quizB:it.k==='cmd'?cmdB:fixB)(it);
 }
 function confirmQuit(){ return S.res.length>0; }
@@ -145,8 +146,8 @@ function done(it, ok, extra){
   if(!S.exam) record(it.id, ok);
   S.res.push({id:it.id, ok, ...extra});
 }
-function nextBtn(){ return `<div class="next"><button class="btn" id="nx">${S.i+1<S.list.length?'Další →':'Výsledky'}</button><span class="hint">Enter</span></div>`; }
-function bindNext(){ const b=$('#nx'); if(!b) return; b.focus(); b.onclick=advance; }
+function nextBtn(){ return `<div class="next"><button class="btn" id="nx">${S.i+1<S.list.length?'Další →':'Výsledky'}</button><button class="btn ghost" id="tonote" title="Vloží zadání a řešení do poznámkového bloku">📝 Do bloku</button><span class="hint">Enter = další · N = blok</span></div>`; }
+function bindNext(){ const b=$('#nx'); if(!b) return; b.focus(); b.onclick=advance; const t=$('#tonote'); if(t) t.onclick=()=>{ NB.append(summary(S.list[S.i])); t.textContent='✓ V bloku'; t.disabled=true; }; }
 function advance(){ S.i++; S.i<S.list.length ? show() : finish(); }
 
 // quiz
@@ -232,20 +233,68 @@ function finish(){
     <div class="row" style="margin:14px 0 6px"><a class="btn" href="#/">Přehled</a>${missed.length?`<button class="btn ghost" id="again">Procvičit těch ${missed.length} chyb</button>`:''}</div>
     ${missed.length?`<h2>Co nevyšlo</h2><ul class="rl">${missed.map(it=>`<li class="no"><b>${it.k==='fix'?esc(it.title):md(it.q)}</b><div class="a">✓ ${md(ans(it))}</div><div class="a">${md(it.x)}</div></li>`).join('')}</ul>`:''}`;
   const a=$('#again'); if(a) a.onclick=()=>run(shuffle(missed),{title:'Chyby'});
-  S=null; keyH=null;
+  S=null; keyH=null; NB.setItem(null);
 }
+
+
+// ---------- poznámkový blok (pop-up) ----------
+function summary(it){
+  const h = `## ${TOPICS[it.t]} · ${{quiz:'kvíz',cmd:'příkaz',fix:'najdi chybu'}[it.k]}`;
+  if(it.k==='quiz') return `${h}\n${it.q}\n→ ${it.o[it.a]}\n  ${it.x}`;
+  if(it.k==='cmd') return `${h}\n${it.q}\n$ ${it.s}\n  ${it.x}`;
+  return `${h}\n${it.title} (${it.lang})\n→ ${it.fix}\n  ${it.x}`;
+}
+const NB = (() => {
+  const btn=$('#nbtn'), pan=$('#npanel'), ta=$('#nta'), ita=$('#nita'), tabs=pan.querySelectorAll('[data-nt]'), info=$('#ninfo'), list=$('#nlist');
+  let cur=null, tab='main', tmr;
+  const saveSoon = () => { clearTimeout(tmr); tmr=setTimeout(save,300); };
+  ta.value = D.notes||'';
+  ta.oninput = () => { D.notes=ta.value; saveSoon(); };
+  ita.oninput = () => { if(!cur) return; const v=ita.value; if(v.trim()) D.inotes[cur.id]=v; else delete D.inotes[cur.id]; saveSoon(); };
+  const label = it => it.k==='fix'?it.title:it.q;
+  function renderList(){
+    const ids=Object.keys(D.inotes).filter(id=>byId[id]);
+    list.innerHTML = ids.length ? ids.map(id=>{ const it=byId[id]; return `<div class="ni"><div class="nq"><span class="tag">${TOPICS[it.t]}</span> ${md(label(it))}</div><div class="nt">${esc(D.inotes[id])}</div><button class="link" data-del="${id}">smazat</button></div>`; }).join('')
+      : '<p class="hint" style="padding:6px 2px">Zatím žádné poznámky k úlohám. Během procvičování otevři blok a přepni na „K úloze“.</p>';
+    list.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ delete D.inotes[b.dataset.del]; save(); renderList(); if(cur&&cur.id===b.dataset.del) ita.value=''; });
+  }
+  function setTab(t){
+    if(t==='item' && !cur) t='main';
+    tab=t; tabs.forEach(b=>b.classList.toggle('on',b.dataset.nt===t));
+    pan.querySelectorAll('[data-pane]').forEach(x=>x.hidden = x.dataset.pane!==t);
+    if(t==='all') renderList();
+    (t==='main'?ta:t==='item'?ita:null)?.focus();
+  }
+  function setItem(it){
+    cur=it; const itab=pan.querySelector('[data-nt="item"]'); itab.disabled=!it;
+    if(it){ info.innerHTML=`<span class="tag">${TOPICS[it.t]}</span> ${md(label(it))}`; ita.value=D.inotes[it.id]||''; }
+    else { info.textContent=''; ita.value=''; if(tab==='item') setTab('main'); }
+  }
+  const isOpen = () => !pan.hidden;
+  function open(t){ pan.hidden=false; btn.classList.add('on'); setTab(t||tab); }
+  function close(){ pan.hidden=true; btn.classList.remove('on'); ($('#nx')||$('#tin'))?.focus(); }
+  const toggle = () => isOpen()?close():open();
+  function append(text){ D.notes = (D.notes&&!D.notes.endsWith('\n')?D.notes+'\n\n':D.notes) + text + '\n'; ta.value=D.notes; save(); open('main'); ta.scrollTop=ta.scrollHeight; }
+  btn.onclick=toggle; $('#nclose').onclick=close;
+  tabs.forEach(b=>b.onclick=()=>setTab(b.dataset.nt));
+  $('#ncopy').onclick=()=>{ navigator.clipboard?.writeText(ta.value); $('#ncopy').textContent='✓ Zkopírováno'; setTimeout(()=>$('#ncopy').textContent='Kopírovat',1200); };
+  $('#ndl').onclick=()=>{ const b=new Blob([ta.value],{type:'text/markdown'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='devops-poznamky.md'; a.click(); };
+  return {open,close,toggle,isOpen,setItem,append,reload(){ ta.value=D.notes||''; renderList(); }};
+})();
 
 // ---------- routes ----------
 let keyH=null;
 document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='INPUT') return;
+  if(e.key==='Escape' && NB.isOpen()){ NB.close(); return; }
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if((e.key==='n'||e.key==='N') && !e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); NB.toggle(); return; }
   if(e.key==='Enter' && $('#nx')){ e.preventDefault(); advance(); return; }
   if(keyH) keyH(e);
 });
 function route(){
   const r=location.hash.replace(/^#\/?/,'');
   document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===r.split('/')[0]));
-  if(S && S.tick) clearInterval(S.tick); S=null; keyH=null; window.scrollTo(0,0);
+  if(S && S.tick) clearInterval(S.tick); S=null; keyH=null; NB.setItem(null); window.scrollTo(0,0);
   if(r==='quiz') return setup('quiz','Kvíz','Otázky s okamžitým vysvětlením. Odpovídat můžeš i klávesami 1–4.');
   if(r==='cmd') return setup('cmd','Příkazy','Napiš příkaz z hlavy jako v terminálu. Na úlohu máš 3 pokusy, po prvním omylu dostaneš nápovědu.');
   if(r==='fix') return setup('fix','Najdi chybu','Rozbitý Dockerfile, YAML, Terraform nebo policy. Najdi řádek, který to způsobuje.');
@@ -267,8 +316,8 @@ window.addEventListener('hashchange',route);
 
 // ---------- export / import / reset ----------
 $('#exp').onclick=()=>{ const b=new Blob([JSON.stringify(D)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='devops-lab-postup.json'; a.click(); };
-$('#imp').onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().then(t=>{ try{ const j=JSON.parse(t); if(j&&j.items){ D=j; save(); badge(); route(); } }catch(_){ alert('Soubor se nepodařilo načíst.'); } }); };
-$('#reset').onclick=()=>{ if(confirm('Opravdu smazat celý postup?')){ D={items:{},days:[],exams:[],topics:[]}; save(); badge(); route(); } };
+$('#imp').onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().then(t=>{ try{ const j=JSON.parse(t); if(j&&j.items){ D=j; D.notes??=''; D.inotes||={}; save(); NB.reload(); badge(); route(); } }catch(_){ alert('Soubor se nepodařilo načíst.'); } }); };
+$('#reset').onclick=()=>{ if(confirm('Opravdu smazat celý postup?')){ D={items:{},days:[],exams:[],topics:[],notes:D.notes,inotes:D.inotes}; save(); badge(); route(); } };
 
 badge(); route();
 })();
